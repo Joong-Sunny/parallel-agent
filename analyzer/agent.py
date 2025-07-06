@@ -4,33 +4,32 @@ import os
 import glob  
   
 # 파일 읽기 및 요약 도구  
-def read_and_summarize_files(file_paths: list[str]) -> str:  
+def read_and_summarize_files(file_path: str) -> str:  
     """파일들을 읽고 요약합니다."""  
     summaries = []  
-    for file_path in file_paths:  
-        with open(file_path, 'r', encoding='utf-8') as f:  
-            content = f.read()  
-            # 여기서 실제 요약 로직 구현  
-            summary = f"파일 {file_path}의 요약: {content[:200]}..."  
-            summaries.append(summary)  
+    with open(file_path, 'r', encoding='utf-8') as f:  
+        content = f.read()  
+        # 여기서 실제 요약 로직 구현  
+        summary = f"파일 {file_path}중 유의미한 내용: {content[:200]}..."  
+        summaries.append(summary)  
     return "\n".join(summaries)  
   
 # 50개 파일을 10개씩 5그룹으로 분할  
-all_files = glob.glob("data/*.md")[:50]  
-file_groups = [all_files[i:i+10] for i in range(0, 50, 10)]  
-  
+all_files = glob.glob("data/*.md") 
+
 # 각 그룹을 처리할 에이전트 생성  
 summary_agents = []  
-for i, file_group in enumerate(file_groups):  
+for i, file in enumerate(all_files):  
     agent = LlmAgent(  
         name=f"file_summarizer_{i+1}",  
         model="gemini-2.0-flash",  
-        description=f"파일 그룹 {i+1}을 요약하는 에이전트",  
+        description=f"파일 {i+1}을 요약하는 에이전트",  
         instruction=f"""  
-        할당된 {len(file_group)}개의 파일을 읽고 각각 요약한 후,  
-        전체적인 패턴과 주요 내용을 분석하여 종합 리포트를 작성하세요.  
+        할당된 1개의 대본을 읽고 개발자의 성장에 관하여 도움이 되는 내용만 추려주는 에이전트입니다.
+        개발자의 성장에 관하여 도움이 되는 문장만 추리고, 해당 문장들이 개발자의 성장이라는 주제와 얼마나 연관성이 있는지 상, 중, 하로 추가적으로 표기해 주세요.
+        주어진 대본이 개발자의 성장과 무관한 내용으로 구성되어있다면 무관한 내용이라고 표기해 주세요.
         """,  
-        tools=[lambda paths=file_group: read_and_summarize_files(paths)]  
+        tools=[lambda path=file: read_and_summarize_files(path)]  
     )  
     summary_agents.append(agent)  
   
@@ -60,8 +59,9 @@ root_agent = LlmAgent(
     model="gemini-2.0-flash",  
     description="문서 분석 프로세스를 조율",  
     sub_agents=[parallel_summarizer, final_analyzer],  
-    instruction="""  
-    먼저 병렬 처리 에이전트를 통해 50개 파일을 5개 그룹으로 나누어 처리하고,  
+    instruction="""
+    사용자가 분석시작 이라고 말하면,
+    먼저 병렬 처리 에이전트를 통해 파일들에서 유의미한 내용을 뽑아내고,  
     그 결과를 최종 분석 에이전트에게 전달하여 종합 분석을 수행하세요.  
     """  
 )
